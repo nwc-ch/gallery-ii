@@ -1,0 +1,10 @@
+.git
+backend/node_modules
+backend/dist
+backend/uploads
+backend/public
+frontend/node_modules
+frontend/dist
+**/.angular
+**/.vscode
+**/coverage

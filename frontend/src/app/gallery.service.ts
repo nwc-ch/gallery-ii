@@ -1,0 +1,60 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+
+export type Gallery = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  childGalleryCount: number;
+  imageCount: number;
+  createdAt: string;
+};
+
+export type GalleryImage = {
+  id: string;
+  galleryId: string;
+  originalName: string;
+  displayUrl: string;
+  previewUrl: string;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+};
+
+@Injectable({ providedIn: 'root' })
+export class GalleryService {
+  constructor(private readonly http: HttpClient) {}
+
+  listGalleries(parentId?: string | null) {
+    let params = new HttpParams();
+    if (parentId) {
+      params = params.set('parentId', parentId);
+    }
+    return this.http.get<Gallery[]>('/api/galleries', { params });
+  }
+
+  createGallery(name: string, parentId?: string | null) {
+    return this.http.post<Gallery>('/api/galleries', { name, parentId });
+  }
+
+  deleteGallery(id: string) {
+    return this.http.delete<void>(`/api/galleries/${id}`);
+  }
+
+  listImages(galleryId: string) {
+    return this.http.get<GalleryImage[]>(`/api/galleries/${galleryId}/images`);
+  }
+
+  uploadImage(galleryId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<GalleryImage>(
+      `/api/galleries/${galleryId}/images`,
+      formData,
+    );
+  }
+
+  deleteImage(galleryId: string, imageId: string) {
+    return this.http.delete<void>(`/api/galleries/${galleryId}/images/${imageId}`);
+  }
+}

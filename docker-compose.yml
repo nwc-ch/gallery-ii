@@ -1,0 +1,21 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: gallery
+      MARIADB_USER: gallery
+      MARIADB_PASSWORD: gallery
+      MARIADB_ROOT_PASSWORD: gallery-root
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  mariadb-data:

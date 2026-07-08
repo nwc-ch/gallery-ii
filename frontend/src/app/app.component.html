@@ -1,0 +1,163 @@
+<main class="shell">
+  <section class="topbar">
+    <div>
+      <p class="eyebrow">Gallery II</p>
+      <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
+    </div>
+
+    @if (auth.token()) {
+      <button type="button" class="ghost" (click)="logout()">Logout</button>
+    }
+  </section>
+
+  @if (!auth.token()) {
+    <section class="login-panel">
+      <form (ngSubmit)="login()" class="login-form">
+        <label>
+          Email
+          <input name="email" type="email" [(ngModel)]="email" autocomplete="email" />
+        </label>
+        <label>
+          Passwort
+          <input
+            name="password"
+            type="password"
+            [(ngModel)]="password"
+            autocomplete="current-password"
+          />
+        </label>
+        <button type="submit">Einloggen</button>
+      </form>
+    </section>
+  } @else {
+    <section class="toolbar">
+      <nav class="breadcrumbs" aria-label="Galeriepfad">
+        <button type="button" (click)="loadGalleries()">Root</button>
+        @for (crumb of path(); track crumb.id; let index = $index) {
+          <button type="button" (click)="openBreadcrumb(index)">
+            {{ crumb.name }}
+          </button>
+        }
+      </nav>
+
+      <form class="create-form" (ngSubmit)="createGallery()">
+        <input
+          name="newGalleryName"
+          type="text"
+          [(ngModel)]="newGalleryName"
+          placeholder="Neue Galerie"
+        />
+        <button type="submit">Anlegen</button>
+      </form>
+    </section>
+
+    @if (selectedGallery()) {
+      <section
+        class="upload-zone"
+        [ngClass]="{ active: uploadActive }"
+        (dragover)="$event.preventDefault(); uploadActive = true"
+        (dragleave)="uploadActive = false"
+        (drop)="onDrop($event)"
+      >
+        <div>
+          <strong>Bilder hinzufuegen</strong>
+          <span>JPG/JPEG oder Nikon NEF per Drag-and-drop ablegen.</span>
+        </div>
+        <label class="file-button">
+          Dateien waehlen
+          <input
+            type="file"
+            multiple
+            accept=".jpg,.jpeg,.nef,image/jpeg"
+            (change)="onFileSelected($event)"
+          />
+        </label>
+      </section>
+    }
+
+    <section class="content-grid">
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Untergalerien</h2>
+          @if (loading) {
+            <span>Lade...</span>
+          }
+        </div>
+
+        <div class="gallery-list">
+          @for (gallery of galleries(); track gallery.id) {
+            <article class="gallery-row">
+              <span>
+                <strong>{{ gallery.name }}</strong>
+                <small>
+                  {{ gallery.childGalleryCount }} Galerien,
+                  {{ gallery.imageCount }} Bilder
+                </small>
+              </span>
+              <span class="row-actions">
+                <button type="button" (click)="loadGalleries(gallery)">
+                  Oeffnen
+                </button>
+                <button
+                  type="button"
+                  title="Galerie loeschen"
+                  aria-label="Galerie loeschen"
+                  (click)="deleteGallery(gallery, $event)"
+                >
+                  X
+                </button>
+              </span>
+            </article>
+          } @empty {
+            <p class="empty">Keine Untergalerien vorhanden.</p>
+          }
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Bilder</h2>
+          @if (selectedGallery()) {
+            <span>{{ images().length }} Dateien</span>
+          }
+        </div>
+
+        @if (!selectedGallery()) {
+          <p class="empty">Waehle eine Galerie aus, um Bilder zu verwalten.</p>
+        } @else {
+          <div class="image-grid">
+            @for (image of images(); track image.id) {
+              <article class="image-card">
+                <img [src]="image.previewUrl" [alt]="image.originalName" />
+                <div>
+                  <strong>{{ image.originalName }}</strong>
+                  <small>
+                    @if (image.width && image.height) {
+                      {{ image.width }} x {{ image.height }} px
+                    } @else {
+                      Groesse unbekannt
+                    }
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  title="Bild loeschen"
+                  aria-label="Bild loeschen"
+                  (click)="deleteImage(image)"
+                >
+                  X
+                </button>
+              </article>
+            } @empty {
+              <p class="empty">Noch keine Bilder in dieser Galerie.</p>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+</main>
