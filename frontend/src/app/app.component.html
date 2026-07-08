@@ -70,7 +70,9 @@
     <section class="workspace">
       <header class="workspace-header">
         <div>
-          <p class="eyebrow">{{ selectedGallery() ? 'Aktive Galerie' : 'Portfolio' }}</p>
+          @if (selectedGallery()) {
+            <p class="eyebrow">Aktive Galerie</p>
+          }
           <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
         </div>
 
@@ -110,12 +112,14 @@
         </section>
       }
 
-      <section class="content-grid">
+      <section class="content-grid" [ngClass]="{ 'root-gallery-list': !selectedGallery() }">
         <section class="gallery-panel">
           <div class="section-heading">
             <div>
-              <p class="eyebrow">Struktur</p>
-              <h2>Untergalerien</h2>
+              @if (selectedGallery()) {
+                <p class="eyebrow">Struktur</p>
+              }
+              <h2>{{ selectedGallery() ? 'Untergalerien' : 'Bestehende Galerien' }}</h2>
             </div>
             @if (loading) {
               <span>Lade...</span>
@@ -124,19 +128,25 @@
 
           <div class="gallery-list">
             @for (gallery of galleries(); track gallery.id) {
-              <article class="gallery-row">
+              <article class="gallery-card">
                 <button
                   type="button"
-                  class="gallery-open"
+                  class="gallery-card-open"
                   (click)="loadGalleries(gallery)"
                 >
-                  <span class="gallery-index">0{{ $index + 1 }}</span>
-                  <span>
+                  <span class="gallery-preview">
+                    @if (gallery.coverImageUrl) {
+                      <img [src]="gallery.coverImageUrl" [alt]="gallery.name" />
+                    } @else {
+                      <img src="/assets/gallery-placeholder.webp" alt="" />
+                    }
+                  </span>
+                  <span class="gallery-card-body">
                     <strong>{{ gallery.name }}</strong>
-                    <small>
-                      {{ gallery.childGalleryCount }} Galerien,
-                      {{ gallery.imageCount }} Bilder
-                    </small>
+                    <span class="gallery-card-meta">
+                      <small>{{ gallery.imageCount }} Bilder</small>
+                      <small>{{ gallery.childGalleryCount }} Untergalerien</small>
+                    </span>
                   </span>
                 </button>
                 <button
@@ -151,33 +161,28 @@
               </article>
             } @empty {
               <div class="empty-state compact">
-                <strong>Noch keine Untergalerien</strong>
-                <span>Lege rechts oben eine neue Galerie an.</span>
+                @if (selectedGallery()) {
+                  <strong>Noch keine Untergalerien</strong>
+                  <span>Lege rechts oben eine neue Untergalerie an.</span>
+                } @else {
+                  <strong>Noch keine Galerien vorhanden</strong>
+                  <span>Lege rechts oben die erste Galerie an.</span>
+                }
               </div>
             }
           </div>
         </section>
 
-        <section class="image-panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Assets</p>
-              <h2>Bilder</h2>
-            </div>
-            @if (selectedGallery()) {
-              <span>{{ images().length }} Dateien</span>
-            }
-          </div>
-
-          @if (!selectedGallery()) {
-            <div class="empty-state hero-empty">
-              <img src="/assets/gallery-hero.webp" alt="" />
+        @if (selectedGallery()) {
+          <section class="image-panel">
+            <div class="section-heading">
               <div>
-                <strong>Waehle eine Galerie aus.</strong>
-                <span>Dann erscheinen Upload, Vorschauen und Verwaltung an einem Ort.</span>
+                <p class="eyebrow">Assets</p>
+                <h2>Bilder</h2>
               </div>
+              <span>{{ images().length }} Dateien</span>
             </div>
-          } @else {
+
             <div class="image-grid">
               @for (image of images(); track image.id) {
                 <article class="image-card">
@@ -211,8 +216,8 @@
                 </div>
               }
             </div>
-          }
-        </section>
+          </section>
+        }
       </section>
     </section>
   }

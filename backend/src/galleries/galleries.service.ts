@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Image } from '../images/image.entity';
 import { ImagesService } from '../images/images.service';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 import { GalleryResponseDto } from './dto/gallery-response.dto';
@@ -11,6 +12,8 @@ export class GalleriesService {
   constructor(
     @InjectRepository(Gallery)
     private readonly galleries: Repository<Gallery>,
+    @InjectRepository(Image)
+    private readonly images: Repository<Image>,
     private readonly imagesService: ImagesService,
   ) {}
 
@@ -28,12 +31,18 @@ export class GalleriesService {
     }
 
     const galleries = await query.getMany();
-    return galleries.map((gallery) => this.toDto(gallery));
+    const covers = await this.findCoverImages(
+      galleries.map((gallery) => gallery.id),
+    );
+    return galleries.map((gallery) =>
+      this.toDto(gallery, covers.get(gallery.id)),
+    );
   }
 
   async get(id: string): Promise<GalleryResponseDto> {
     const gallery = await this.findWithCounts(id);
-    return this.toDto(gallery);
+    const cover = await this.findCoverImage(id);
+    return this.toDto(gallery, cover);
   }
 
   async create(dto: CreateGalleryDto): Promise<GalleryResponseDto> {
@@ -96,7 +105,36 @@ export class GalleriesService {
     return gallery;
   }
 
-  private toDto(gallery: Gallery): GalleryResponseDto {
+  private async findCoverImages(
+    galleryIds: string[],
+  ): Promise<Map<string, Image>> {
+    if (galleryIds.length === 0) {
+      return new Map();
+    }
+
+    const images = await this.images
+      .createQueryBuilder('image')
+      .where('image.galleryId IN (:...galleryIds)', { galleryIds })
+      .orderBy('image.createdAt', 'DESC')
+      .getMany();
+
+    const covers = new Map<string, Image>();
+    images.forEach((image) => {
+      if (!covers.has(image.galleryId)) {
+        covers.set(image.galleryId, image);
+      }
+    });
+    return covers;
+  }
+
+  private findCoverImage(galleryId: string): Promise<Image | null> {
+    return this.images.findOne({
+      where: { galleryId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  private toDto(gallery: Gallery, cover?: Image | null): GalleryResponseDto {
     const countedGallery = gallery as Gallery & {
       childGalleryCount?: number;
       imageCount?: number;
@@ -108,6 +146,9 @@ export class GalleriesService {
       parentId: gallery.parentId,
       childGalleryCount: countedGallery.childGalleryCount ?? 0,
       imageCount: countedGallery.imageCount ?? 0,
+      coverImageUrl: cover
+        ? `/uploads/${cover.galleryId}/${cover.id}/preview.jpg`
+        : null,
       createdAt: gallery.createdAt,
     };
   }

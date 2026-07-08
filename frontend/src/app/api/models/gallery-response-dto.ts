@@ -3,10 +3,10 @@
 
 export interface GalleryResponseDto {
   childGalleryCount: number;
+  coverImageUrl: string | null;
   createdAt: string;
   id: string;
   imageCount: number;
   name: string;
-  parentId: {
-} | null;
+  parentId: string | null;
 }

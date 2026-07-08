@@ -7,6 +7,7 @@ export type Gallery = {
   parentId: string | null;
   childGalleryCount: number;
   imageCount: number;
+  coverImageUrl: string | null;
   createdAt: string;
 };
 
