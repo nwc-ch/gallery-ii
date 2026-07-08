@@ -22,6 +22,11 @@ export class AppComponent {
   images = signal<GalleryImage[]>([]);
   path = signal<Gallery[]>([]);
   selectedGallery = computed(() => this.path().at(-1) ?? null);
+  galleryCount = computed(() => this.galleries().length);
+  imageCount = computed(() => this.images().length);
+  containedGalleryCount = computed(() =>
+    this.galleries().reduce((sum, gallery) => sum + gallery.childGalleryCount, 0),
+  );
 
   constructor(
     readonly auth: AuthService,

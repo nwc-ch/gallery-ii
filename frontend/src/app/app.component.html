@@ -1,36 +1,45 @@
-<main class="shell">
-  <section class="topbar">
-    <div>
-      <p class="eyebrow">Gallery II</p>
-      <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
-    </div>
-
-    @if (auth.token()) {
-      <button type="button" class="ghost" (click)="logout()">Logout</button>
-    }
-  </section>
-
+<main class="app-shell" [ngClass]="{ 'is-authenticated': auth.token() }">
   @if (!auth.token()) {
-    <section class="login-panel">
-      <form (ngSubmit)="login()" class="login-form">
-        <label>
-          Email
-          <input name="email" type="email" [(ngModel)]="email" autocomplete="email" />
-        </label>
-        <label>
-          Passwort
-          <input
-            name="password"
-            type="password"
-            [(ngModel)]="password"
-            autocomplete="current-password"
-          />
-        </label>
-        <button type="submit">Einloggen</button>
-      </form>
+    <section class="login-view">
+      <div class="login-visual" aria-hidden="true">
+        <div class="brand-mark">GII</div>
+        <div class="visual-caption">
+          <span>Private archive</span>
+          <strong>Curated galleries for finished work.</strong>
+        </div>
+      </div>
+
+      <section class="login-panel">
+        <p class="eyebrow">Gallery II</p>
+        <h1>Bildarchive ruhig und klar verwalten.</h1>
+        <form (ngSubmit)="login()" class="login-form">
+          <label>
+            Email
+            <input name="email" type="email" [(ngModel)]="email" autocomplete="email" />
+          </label>
+          <label>
+            Passwort
+            <input
+              name="password"
+              type="password"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+            />
+          </label>
+          <button type="submit" class="primary-action">Einloggen</button>
+        </form>
+      </section>
     </section>
   } @else {
-    <section class="toolbar">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <span class="brand-mark">GII</span>
+        <div>
+          <strong>Gallery II</strong>
+          <small>Image workspace</small>
+        </div>
+      </div>
+
       <nav class="breadcrumbs" aria-label="Galeriepfad">
         <button type="button" (click)="loadGalleries()">Root</button>
         @for (crumb of path(); track crumb.id; let index = $index) {
@@ -40,120 +49,171 @@
         }
       </nav>
 
-      <form class="create-form" (ngSubmit)="createGallery()">
-        <input
-          name="newGalleryName"
-          type="text"
-          [(ngModel)]="newGalleryName"
-          placeholder="Neue Galerie"
-        />
-        <button type="submit">Anlegen</button>
-      </form>
-    </section>
+      <div class="stats-grid">
+        <article>
+          <span>{{ galleryCount() }}</span>
+          <small>Galerien</small>
+        </article>
+        <article>
+          <span>{{ imageCount() }}</span>
+          <small>Bilder</small>
+        </article>
+        <article>
+          <span>{{ containedGalleryCount() }}</span>
+          <small>Enthalten</small>
+        </article>
+      </div>
 
-    @if (selectedGallery()) {
-      <section
-        class="upload-zone"
-        [ngClass]="{ active: uploadActive }"
-        (dragover)="$event.preventDefault(); uploadActive = true"
-        (dragleave)="uploadActive = false"
-        (drop)="onDrop($event)"
-      >
+      <button type="button" class="ghost logout-button" (click)="logout()">Logout</button>
+    </aside>
+
+    <section class="workspace">
+      <header class="workspace-header">
         <div>
-          <strong>Bilder hinzufuegen</strong>
-          <span>JPG/JPEG oder Nikon NEF per Drag-and-drop ablegen.</span>
+          <p class="eyebrow">{{ selectedGallery() ? 'Aktive Galerie' : 'Portfolio' }}</p>
+          <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
         </div>
-        <label class="file-button">
-          Dateien waehlen
+
+        <form class="create-form" (ngSubmit)="createGallery()">
           <input
-            type="file"
-            multiple
-            accept=".jpg,.jpeg,.nef,image/jpeg"
-            (change)="onFileSelected($event)"
+            name="newGalleryName"
+            type="text"
+            [(ngModel)]="newGalleryName"
+            placeholder="Neue Galerie"
           />
-        </label>
-      </section>
-    }
+          <button type="submit" class="primary-action">Anlegen</button>
+        </form>
+      </header>
 
-    <section class="content-grid">
-      <div class="panel">
-        <div class="panel-title">
-          <h2>Untergalerien</h2>
-          @if (loading) {
-            <span>Lade...</span>
-          }
-        </div>
+      @if (selectedGallery()) {
+        <section
+          class="upload-zone"
+          [ngClass]="{ active: uploadActive }"
+          (dragover)="$event.preventDefault(); uploadActive = true"
+          (dragleave)="uploadActive = false"
+          (drop)="onDrop($event)"
+        >
+          <div>
+            <p class="eyebrow">Upload</p>
+            <strong>Bilder hinzufuegen</strong>
+            <span>JPG/JPEG oder Nikon NEF hier ablegen.</span>
+          </div>
+          <label class="file-button">
+            Dateien waehlen
+            <input
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.nef,image/jpeg"
+              (change)="onFileSelected($event)"
+            />
+          </label>
+        </section>
+      }
 
-        <div class="gallery-list">
-          @for (gallery of galleries(); track gallery.id) {
-            <article class="gallery-row">
-              <span>
-                <strong>{{ gallery.name }}</strong>
-                <small>
-                  {{ gallery.childGalleryCount }} Galerien,
-                  {{ gallery.imageCount }} Bilder
-                </small>
-              </span>
-              <span class="row-actions">
-                <button type="button" (click)="loadGalleries(gallery)">
-                  Oeffnen
+      <section class="content-grid">
+        <section class="gallery-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Struktur</p>
+              <h2>Untergalerien</h2>
+            </div>
+            @if (loading) {
+              <span>Lade...</span>
+            }
+          </div>
+
+          <div class="gallery-list">
+            @for (gallery of galleries(); track gallery.id) {
+              <article class="gallery-row">
+                <button
+                  type="button"
+                  class="gallery-open"
+                  (click)="loadGalleries(gallery)"
+                >
+                  <span class="gallery-index">0{{ $index + 1 }}</span>
+                  <span>
+                    <strong>{{ gallery.name }}</strong>
+                    <small>
+                      {{ gallery.childGalleryCount }} Galerien,
+                      {{ gallery.imageCount }} Bilder
+                    </small>
+                  </span>
                 </button>
                 <button
                   type="button"
+                  class="danger-action"
                   title="Galerie loeschen"
                   aria-label="Galerie loeschen"
                   (click)="deleteGallery(gallery, $event)"
                 >
                   X
                 </button>
-              </span>
-            </article>
-          } @empty {
-            <p class="empty">Keine Untergalerien vorhanden.</p>
-          }
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">
-          <h2>Bilder</h2>
-          @if (selectedGallery()) {
-            <span>{{ images().length }} Dateien</span>
-          }
-        </div>
-
-        @if (!selectedGallery()) {
-          <p class="empty">Waehle eine Galerie aus, um Bilder zu verwalten.</p>
-        } @else {
-          <div class="image-grid">
-            @for (image of images(); track image.id) {
-              <article class="image-card">
-                <img [src]="image.previewUrl" [alt]="image.originalName" />
-                <div>
-                  <strong>{{ image.originalName }}</strong>
-                  <small>
-                    @if (image.width && image.height) {
-                      {{ image.width }} x {{ image.height }} px
-                    } @else {
-                      Groesse unbekannt
-                    }
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  title="Bild loeschen"
-                  aria-label="Bild loeschen"
-                  (click)="deleteImage(image)"
-                >
-                  X
-                </button>
               </article>
             } @empty {
-              <p class="empty">Noch keine Bilder in dieser Galerie.</p>
+              <div class="empty-state compact">
+                <strong>Noch keine Untergalerien</strong>
+                <span>Lege rechts oben eine neue Galerie an.</span>
+              </div>
             }
           </div>
-        }
-      </div>
+        </section>
+
+        <section class="image-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Assets</p>
+              <h2>Bilder</h2>
+            </div>
+            @if (selectedGallery()) {
+              <span>{{ images().length }} Dateien</span>
+            }
+          </div>
+
+          @if (!selectedGallery()) {
+            <div class="empty-state hero-empty">
+              <img src="/assets/gallery-hero.webp" alt="" />
+              <div>
+                <strong>Waehle eine Galerie aus.</strong>
+                <span>Dann erscheinen Upload, Vorschauen und Verwaltung an einem Ort.</span>
+              </div>
+            </div>
+          } @else {
+            <div class="image-grid">
+              @for (image of images(); track image.id) {
+                <article class="image-card">
+                  <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
+                    <img [src]="image.previewUrl" [alt]="image.originalName" />
+                  </a>
+                  <div class="image-meta">
+                    <strong>{{ image.originalName }}</strong>
+                    <small>
+                      @if (image.width && image.height) {
+                        {{ image.width }} x {{ image.height }} px
+                      } @else {
+                        Groesse unbekannt
+                      }
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    class="danger-action"
+                    title="Bild loeschen"
+                    aria-label="Bild loeschen"
+                    (click)="deleteImage(image)"
+                  >
+                    X
+                  </button>
+                </article>
+              } @empty {
+                <div class="empty-state">
+                  <strong>Noch keine Bilder</strong>
+                  <span>Ziehe Dateien in die Upload-Flaeche, um diese Galerie zu fuellen.</span>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      </section>
     </section>
   }
 
