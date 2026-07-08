@@ -7,3 +7,4 @@ export type { CreateGalleryDto } from './models/create-gallery-dto';
 export type { GalleryResponseDto } from './models/gallery-response-dto';
 export type { ImageResponseDto } from './models/image-response-dto';
 export type { LoginDto } from './models/login-dto';
+export type { UpdateGalleryDto } from './models/update-gallery-dto';

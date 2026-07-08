@@ -5,6 +5,7 @@ import { Image } from '../images/image.entity';
 import { ImagesService } from '../images/images.service';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 import { GalleryResponseDto } from './dto/gallery-response.dto';
+import { UpdateGalleryDto } from './dto/update-gallery.dto';
 import { Gallery } from './gallery.entity';
 
 @Injectable()
@@ -63,6 +64,17 @@ export class GalleriesService {
     );
 
     return this.get(gallery.id);
+  }
+
+  async update(id: string, dto: UpdateGalleryDto): Promise<GalleryResponseDto> {
+    const gallery = await this.galleries.findOne({ where: { id } });
+    if (!gallery) {
+      throw new NotFoundException('Gallery not found');
+    }
+
+    gallery.name = dto.name;
+    await this.galleries.save(gallery);
+    return this.get(id);
   }
 
   async delete(id: string): Promise<void> {

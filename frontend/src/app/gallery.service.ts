@@ -38,6 +38,10 @@ export class GalleryService {
     return this.http.post<Gallery>('/api/galleries', { name, parentId });
   }
 
+  updateGallery(id: string, name: string) {
+    return this.http.patch<Gallery>(`/api/galleries/${id}`, { name });
+  }
+
   deleteGallery(id: string) {
     return this.http.delete<void>(`/api/galleries/${id}`);
   }

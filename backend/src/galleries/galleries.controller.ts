@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Patch,
   Param,
   Post,
   Query,
@@ -18,6 +19,7 @@ import {
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 import { GalleryResponseDto } from './dto/gallery-response.dto';
+import { UpdateGalleryDto } from './dto/update-gallery.dto';
 import { GalleriesService } from './galleries.service';
 
 @ApiTags('galleries')
@@ -44,6 +46,15 @@ export class GalleriesController {
   @ApiCreatedResponse({ type: GalleryResponseDto })
   create(@Body() dto: CreateGalleryDto): Promise<GalleryResponseDto> {
     return this.galleriesService.create(dto);
+  }
+
+  @Patch(':id')
+  @ApiOkResponse({ type: GalleryResponseDto })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateGalleryDto,
+  ): Promise<GalleryResponseDto> {
+    return this.galleriesService.update(id, dto);
   }
 
   @Delete(':id')

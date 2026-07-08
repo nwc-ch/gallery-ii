@@ -15,6 +15,8 @@ export class AppComponent {
   email = 'admin@example.com';
   password = 'change-me';
   newGalleryName = '';
+  editGalleryName = '';
+  editingGalleryTitle = false;
   uploadActive = false;
   loading = false;
   error = signal<string | null>(null);
@@ -105,6 +107,42 @@ export class AppComponent {
         },
         error: () => this.error.set('Galerie konnte nicht erstellt werden.'),
       });
+  }
+
+  startTitleEdit(): void {
+    const gallery = this.selectedGallery();
+    if (!gallery) {
+      return;
+    }
+
+    this.editGalleryName = gallery.name;
+    this.editingGalleryTitle = true;
+  }
+
+  cancelTitleEdit(): void {
+    this.editGalleryName = '';
+    this.editingGalleryTitle = false;
+  }
+
+  saveTitleEdit(): void {
+    const gallery = this.selectedGallery();
+    const name = this.editGalleryName.trim();
+    if (!gallery || !name) {
+      return;
+    }
+
+    this.galleriesApi.updateGallery(gallery.id, name).subscribe({
+      next: (updatedGallery) => {
+        this.path.update((path) =>
+          path.map((item) =>
+            item.id === updatedGallery.id ? updatedGallery : item,
+          ),
+        );
+        this.editGalleryName = '';
+        this.editingGalleryTitle = false;
+      },
+      error: () => this.error.set('Galerietitel konnte nicht gespeichert werden.'),
+    });
   }
 
   deleteGallery(gallery: Gallery, event: MouseEvent): void {

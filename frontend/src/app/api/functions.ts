@@ -13,6 +13,8 @@ export type { GalleriesControllerGet$Params as GalleriesControllerGet$Params } f
 export { galleriesControllerGet as galleriesControllerGet } from './fn/galleries/galleries-controller-get';
 export type { GalleriesControllerDelete$Params as GalleriesControllerDelete$Params } from './fn/galleries/galleries-controller-delete';
 export { galleriesControllerDelete as galleriesControllerDelete } from './fn/galleries/galleries-controller-delete';
+export type { GalleriesControllerUpdate$Params as GalleriesControllerUpdate$Params } from './fn/galleries/galleries-controller-update';
+export { galleriesControllerUpdate as galleriesControllerUpdate } from './fn/galleries/galleries-controller-update';
 export type { ImagesControllerList$Params as ImagesControllerList$Params } from './fn/images/images-controller-list';
 export { imagesControllerList as imagesControllerList } from './fn/images/images-controller-list';
 export type { ImagesControllerUpload$Params as ImagesControllerUpload$Params } from './fn/images/images-controller-upload';

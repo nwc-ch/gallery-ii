@@ -73,7 +73,29 @@
           @if (selectedGallery()) {
             <p class="eyebrow">Aktive Galerie</p>
           }
-          <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
+          @if (selectedGallery() && editingGalleryTitle) {
+            <form class="title-edit-form" (ngSubmit)="saveTitleEdit()">
+              <input
+                name="editGalleryName"
+                type="text"
+                [(ngModel)]="editGalleryName"
+                aria-label="Galerietitel"
+              />
+              <button type="submit" class="primary-action">Speichern</button>
+              <button type="button" class="ghost inline-ghost" (click)="cancelTitleEdit()">
+                Abbrechen
+              </button>
+            </form>
+          } @else {
+            <div class="title-row">
+              <h1>{{ selectedGallery()?.name || 'Galerien' }}</h1>
+              @if (selectedGallery()) {
+                <button type="button" class="title-edit-button" (click)="startTitleEdit()">
+                  Titel bearbeiten
+                </button>
+              }
+            </div>
+          }
         </div>
 
         <form class="create-form" (ngSubmit)="createGallery()">
