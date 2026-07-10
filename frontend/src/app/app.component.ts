@@ -1,5 +1,5 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -35,14 +35,21 @@ export class AppComponent {
     private readonly galleriesApi: GalleryService,
   ) {
     if (this.auth.token()) {
-      this.loadGalleries();
+      this.loadFromUrl();
+    }
+  }
+
+  @HostListener('window:popstate')
+  onPopState(): void {
+    if (this.auth.token()) {
+      this.loadFromUrl();
     }
   }
 
   login(): void {
     this.error.set(null);
     this.auth.login(this.email, this.password).subscribe({
-      next: () => this.loadGalleries(),
+      next: () => this.loadFromUrl(),
       error: () => this.error.set('Login fehlgeschlagen.'),
     });
   }
@@ -52,9 +59,10 @@ export class AppComponent {
     this.galleries.set([]);
     this.images.set([]);
     this.path.set([]);
+    this.updateUrl('/');
   }
 
-  loadGalleries(parent?: Gallery | null): void {
+  loadGalleries(parent?: Gallery | null, updateUrl = true): void {
     this.loading = true;
     this.error.set(null);
     this.galleriesApi
@@ -66,13 +74,28 @@ export class AppComponent {
           if (parent) {
             this.path.update((path) => [...path, parent]);
             this.loadImages(parent.id);
+            if (updateUrl) {
+              this.updateUrl(`/gallery/${parent.id}`);
+            }
           } else {
             this.path.set([]);
             this.images.set([]);
+            if (updateUrl) {
+              this.updateUrl('/');
+            }
           }
         },
         error: () => this.error.set('Galerien konnten nicht geladen werden.'),
       });
+  }
+
+  openGalleryLink(event: MouseEvent, gallery: Gallery): void {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    this.loadGalleries(gallery);
   }
 
   openBreadcrumb(index: number): void {
@@ -86,7 +109,13 @@ export class AppComponent {
       .subscribe({
         next: (galleries) => {
           this.galleries.set(galleries);
-          current ? this.loadImages(current.id) : this.images.set([]);
+          if (current) {
+            this.loadImages(current.id);
+            this.updateUrl(`/gallery/${current.id}`);
+          } else {
+            this.images.set([]);
+            this.updateUrl('/');
+          }
         },
         error: () => this.error.set('Galerie konnte nicht geoeffnet werden.'),
       });
@@ -210,6 +239,53 @@ export class AppComponent {
     this.galleriesApi.listGalleries(current?.id ?? null).subscribe((galleries) => {
       this.galleries.set(galleries);
     });
+  }
+
+  private loadFromUrl(): void {
+    const galleryId = this.getGalleryIdFromUrl();
+    if (galleryId) {
+      this.loadGalleryDetail(galleryId);
+    } else {
+      this.loadGalleries(null, false);
+    }
+  }
+
+  private loadGalleryDetail(galleryId: string): void {
+    this.loading = true;
+    this.error.set(null);
+    this.galleriesApi
+      .getGallery(galleryId)
+      .subscribe({
+        next: (gallery) => {
+          this.path.set([gallery]);
+          this.loadImages(gallery.id);
+          this.galleriesApi
+            .listGalleries(gallery.id)
+            .pipe(finalize(() => (this.loading = false)))
+            .subscribe({
+              next: (galleries) => this.galleries.set(galleries),
+              error: () =>
+                this.error.set('Galerie konnte nicht geoeffnet werden.'),
+            });
+        },
+        error: () => {
+          this.loading = false;
+          this.error.set('Galerie konnte nicht geoeffnet werden.');
+          this.updateUrl('/');
+          this.loadGalleries(null, false);
+        },
+      });
+  }
+
+  private getGalleryIdFromUrl(): string | null {
+    const match = window.location.pathname.match(/^\/gallery\/([^/]+)$/);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }
+
+  private updateUrl(path: string): void {
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
   }
 
   private loadImages(galleryId: string): void {

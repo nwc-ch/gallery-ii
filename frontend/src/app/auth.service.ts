@@ -32,6 +32,10 @@ export class AuthService {
   }
 
   logout(): void {
+    this.clearSession();
+  }
+
+  clearSession(): void {
     localStorage.removeItem(this.storageKey);
     this.token.set(null);
     this.user.set(null);

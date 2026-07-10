@@ -37,6 +37,10 @@ export class ImagesService {
     galleryId: string,
     file: Express.Multer.File,
   ): Promise<ImageResponseDto> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
     const gallery = await this.galleries.findOne({ where: { id: galleryId } });
     if (!gallery) {
       throw new NotFoundException('Gallery not found');
@@ -53,54 +57,61 @@ export class ImagesService {
     const galleryDir = join(this.config.uploadsDir, galleryId, id);
     await mkdir(galleryDir, { recursive: true });
 
-    const sourcePath =
-      extension === '.nef'
-        ? await this.convertNef(file, galleryDir)
-        : await this.persistTemporaryJpeg(file, galleryDir);
+    try {
+      const sourcePath =
+        extension === '.nef'
+          ? await this.convertNef(file, galleryDir)
+          : await this.persistTemporaryJpeg(file, galleryDir);
 
-    const displayPath = join(galleryDir, 'display.jpg');
-    const previewPath = join(galleryDir, 'preview.jpg');
+      const displayPath = join(galleryDir, 'display.jpg');
+      const previewPath = join(galleryDir, 'preview.jpg');
 
-    const imagePipeline = sharp(sourcePath).rotate();
-    const metadata = await imagePipeline.metadata();
+      const imagePipeline = sharp(sourcePath).rotate();
+      const metadata = await imagePipeline.metadata();
 
-    await sharp(sourcePath)
-      .rotate()
-      .resize({
-        width: 2200,
-        height: 2200,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 86 })
-      .toFile(displayPath);
+      await sharp(sourcePath)
+        .rotate()
+        .resize({
+          width: 2200,
+          height: 2200,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 86 })
+        .toFile(displayPath);
 
-    await sharp(sourcePath)
-      .rotate()
-      .resize({
-        width: 520,
-        height: 520,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 78 })
-      .toFile(previewPath);
+      await sharp(sourcePath)
+        .rotate()
+        .resize({
+          width: 520,
+          height: 520,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 78 })
+        .toFile(previewPath);
 
-    await rm(sourcePath, { force: true });
+      await rm(sourcePath, { force: true });
 
-    const image = await this.images.save(
-      this.images.create({
-        id,
-        galleryId,
-        originalName: file.originalname,
-        displayPath,
-        previewPath,
-        width: metadata.width ?? null,
-        height: metadata.height ?? null,
-      }),
-    );
+      const image = await this.images.save(
+        this.images.create({
+          id,
+          galleryId,
+          originalName: file.originalname,
+          displayPath,
+          previewPath,
+          width: metadata.width ?? null,
+          height: metadata.height ?? null,
+        }),
+      );
 
-    return this.toDto(image);
+      return this.toDto(image);
+    } catch (error) {
+      await rm(galleryDir, { recursive: true, force: true }).catch(
+        () => undefined,
+      );
+      throw error;
+    }
   }
 
   async delete(imageId: string): Promise<void> {

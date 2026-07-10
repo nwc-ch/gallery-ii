@@ -34,6 +34,10 @@ export class GalleryService {
     return this.http.get<Gallery[]>('/api/galleries', { params });
   }
 
+  getGallery(id: string) {
+    return this.http.get<Gallery>(`/api/galleries/${id}`);
+  }
+
   createGallery(name: string, parentId?: string | null) {
     return this.http.post<Gallery>('/api/galleries', { name, parentId });
   }

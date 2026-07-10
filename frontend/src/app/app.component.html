@@ -109,38 +109,10 @@
         </form>
       </header>
 
-      @if (selectedGallery()) {
-        <section
-          class="upload-zone"
-          [ngClass]="{ active: uploadActive }"
-          (dragover)="$event.preventDefault(); uploadActive = true"
-          (dragleave)="uploadActive = false"
-          (drop)="onDrop($event)"
-        >
-          <div>
-            <p class="eyebrow">Upload</p>
-            <strong>Bilder hinzufuegen</strong>
-            <span>JPG/JPEG oder Nikon NEF hier ablegen.</span>
-          </div>
-          <label class="file-button">
-            Dateien waehlen
-            <input
-              type="file"
-              multiple
-              accept=".jpg,.jpeg,.nef,image/jpeg"
-              (change)="onFileSelected($event)"
-            />
-          </label>
-        </section>
-      }
-
       <section class="content-grid" [ngClass]="{ 'root-gallery-list': !selectedGallery() }">
         <section class="gallery-panel">
           <div class="section-heading">
             <div>
-              @if (selectedGallery()) {
-                <p class="eyebrow">Struktur</p>
-              }
               <h2>{{ selectedGallery() ? 'Untergalerien' : 'Bestehende Galerien' }}</h2>
             </div>
             @if (loading) {
@@ -151,10 +123,10 @@
           <div class="gallery-list">
             @for (gallery of galleries(); track gallery.id) {
               <article class="gallery-card">
-                <button
-                  type="button"
+                <a
+                  [href]="'/gallery/' + gallery.id"
                   class="gallery-card-open"
-                  (click)="loadGalleries(gallery)"
+                  (click)="openGalleryLink($event, gallery)"
                 >
                   <span class="gallery-preview">
                     @if (gallery.coverImageUrl) {
@@ -170,7 +142,7 @@
                       <small>{{ gallery.childGalleryCount }} Untergalerien</small>
                     </span>
                   </span>
-                </button>
+                </a>
                 <button
                   type="button"
                   class="danger-action"
@@ -194,53 +166,76 @@
             }
           </div>
         </section>
-
-        @if (selectedGallery()) {
-          <section class="image-panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Assets</p>
-                <h2>Bilder</h2>
-              </div>
-              <span>{{ images().length }} Dateien</span>
-            </div>
-
-            <div class="image-grid">
-              @for (image of images(); track image.id) {
-                <article class="image-card">
-                  <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
-                    <img [src]="image.previewUrl" [alt]="image.originalName" />
-                  </a>
-                  <div class="image-meta">
-                    <strong>{{ image.originalName }}</strong>
-                    <small>
-                      @if (image.width && image.height) {
-                        {{ image.width }} x {{ image.height }} px
-                      } @else {
-                        Groesse unbekannt
-                      }
-                    </small>
-                  </div>
-                  <button
-                    type="button"
-                    class="danger-action"
-                    title="Bild loeschen"
-                    aria-label="Bild loeschen"
-                    (click)="deleteImage(image)"
-                  >
-                    X
-                  </button>
-                </article>
-              } @empty {
-                <div class="empty-state">
-                  <strong>Noch keine Bilder</strong>
-                  <span>Ziehe Dateien in die Upload-Flaeche, um diese Galerie zu fuellen.</span>
-                </div>
-              }
-            </div>
-          </section>
-        }
       </section>
+
+      @if (selectedGallery()) {
+        <section
+          class="upload-zone"
+          [ngClass]="{ active: uploadActive }"
+          (dragover)="$event.preventDefault(); uploadActive = true"
+          (dragleave)="uploadActive = false"
+          (drop)="onDrop($event)"
+        >
+          <div>
+            <p class="eyebrow">Upload</p>
+            <strong>Bilder hinzufuegen</strong>
+            <span>JPG/JPEG oder Nikon NEF hier ablegen.</span>
+          </div>
+          <label class="file-button">
+            Dateien waehlen
+            <input
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.nef,image/jpeg"
+              (change)="onFileSelected($event)"
+            />
+          </label>
+        </section>
+
+        <section class="image-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Assets</p>
+              <h2>Bilder</h2>
+            </div>
+            <span>{{ images().length }} Dateien</span>
+          </div>
+
+          <div class="image-grid">
+            @for (image of images(); track image.id) {
+              <article class="image-card">
+                <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
+                  <img [src]="image.previewUrl" [alt]="image.originalName" />
+                </a>
+                <div class="image-meta">
+                  <strong>{{ image.originalName }}</strong>
+                  <small>
+                    @if (image.width && image.height) {
+                      {{ image.width }} x {{ image.height }} px
+                    } @else {
+                      Groesse unbekannt
+                    }
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  class="danger-action"
+                  title="Bild loeschen"
+                  aria-label="Bild loeschen"
+                  (click)="deleteImage(image)"
+                >
+                  X
+                </button>
+              </article>
+            } @empty {
+              <div class="empty-state">
+                <strong>Noch keine Bilder</strong>
+                <span>Ziehe Dateien in die Upload-Flaeche, um diese Galerie zu fuellen.</span>
+              </div>
+            }
+          </div>
+        </section>
+      }
     </section>
   }
 
