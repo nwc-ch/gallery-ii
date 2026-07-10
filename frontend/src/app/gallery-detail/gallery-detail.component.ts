@@ -1,4 +1,5 @@
 import { NgClass } from '@angular/common';
+import { HttpEventType } from '@angular/common/http';
 import {
   Component,
   ElementRef,
@@ -10,27 +11,48 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { LucideAngularModule } from 'lucide-angular';
 import { finalize, switchMap, tap } from 'rxjs';
 import { AuthService } from '../auth.service';
 import { Gallery, GalleryImage, GalleryService } from '../gallery.service';
 
+type UploadQueueItem = {
+  id: string;
+  fileName: string;
+  progress: number;
+  status: 'uploading' | 'done' | 'error';
+  fading: boolean;
+};
+
+type ThumbnailSize = 's' | 'm' | 'l';
+
 @Component({
   selector: 'app-gallery-detail',
-  imports: [FormsModule, NgClass, RouterLink],
+  imports: [
+    FormsModule,
+    NgClass,
+    RouterLink,
+    LucideAngularModule,
+  ],
   templateUrl: './gallery-detail.component.html',
+  styleUrl: './gallery-detail.component.scss',
 })
 export class GalleryDetailComponent implements OnInit, OnDestroy {
   newGalleryName = '';
   editGalleryName = '';
-  editingGalleryTitle = false;
+  editGalleryTitleDialogOpen = false;
   createGalleryDialogOpen = false;
+  deleteImagesDialogOpen = false;
   uploadActive = false;
   loading = false;
   deletingImages = false;
   error = signal<string | null>(null);
+  uploadItems = signal<UploadQueueItem[]>([]);
   galleries = signal<Gallery[]>([]);
   images = signal<GalleryImage[]>([]);
   imageRows = signal<GalleryImage[][]>([]);
+  thumbnailSize = signal<ThumbnailSize>('s');
+  thumbnailSizes: ThumbnailSize[] = ['s', 'm', 'l'];
   selectedGallery = signal<Gallery | null>(null);
   imageDeleteMode = signal(false);
   selectedImageIds = signal<Set<string>>(new Set());
@@ -42,6 +64,8 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
   );
   private imageGridResizeObserver?: ResizeObserver;
   private imageGridWidth = 0;
+  private uploadFadeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private uploadRemoveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   @ViewChild('imageGrid')
   set imageGridElement(element: ElementRef<HTMLElement> | undefined) {
@@ -77,6 +101,8 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.imageGridResizeObserver?.disconnect();
+    this.uploadFadeTimers.forEach((timer) => clearTimeout(timer));
+    this.uploadRemoveTimers.forEach((timer) => clearTimeout(timer));
   }
 
   logout(): void {
@@ -119,12 +145,12 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
     }
 
     this.editGalleryName = gallery.name;
-    this.editingGalleryTitle = true;
+    this.editGalleryTitleDialogOpen = true;
   }
 
   cancelTitleEdit(): void {
     this.editGalleryName = '';
-    this.editingGalleryTitle = false;
+    this.editGalleryTitleDialogOpen = false;
   }
 
   saveTitleEdit(): void {
@@ -138,7 +164,7 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
       next: (updatedGallery) => {
         this.selectedGallery.set(updatedGallery);
         this.editGalleryName = '';
-        this.editingGalleryTitle = false;
+        this.editGalleryTitleDialogOpen = false;
       },
       error: () => this.error.set('Galerietitel konnte nicht gespeichert werden.'),
     });
@@ -179,12 +205,39 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
     }
 
     Array.from(files).forEach((file) => {
-      this.galleriesApi.uploadImage(gallery.id, file).subscribe({
-        next: () => {
-          this.loadImages(gallery.id);
-          this.refreshChildren();
+      const uploadId = crypto.randomUUID();
+      this.uploadItems.update((items) => [
+        ...items,
+        {
+          id: uploadId,
+          fileName: file.name,
+          progress: 0,
+          status: 'uploading',
+          fading: false,
         },
-        error: () => this.error.set(`${file.name} konnte nicht hochgeladen werden.`),
+      ]);
+
+      this.galleriesApi.uploadImage(gallery.id, file).subscribe({
+        next: (event) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            const progress = event.total
+              ? Math.round((event.loaded / event.total) * 100)
+              : 0;
+            this.updateUploadItem(uploadId, { progress });
+          }
+
+          if (event.type === HttpEventType.Response) {
+            this.updateUploadItem(uploadId, { progress: 100, status: 'done' });
+            this.scheduleUploadDismiss(uploadId);
+            this.loadImages(gallery.id);
+            this.refreshChildren();
+          }
+        },
+        error: () => {
+          this.updateUploadItem(uploadId, { status: 'error' });
+          this.scheduleUploadDismiss(uploadId);
+          this.error.set(`${file.name} konnte nicht hochgeladen werden.`);
+        },
       });
     });
   }
@@ -240,18 +293,33 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
     return `${Math.round(this.getImageRatio(image) * this.getImageRowHeight())}px`;
   }
 
+  getImageRowHeightStyle(): string {
+    return `${this.getImageRowHeight()}px`;
+  }
+
   trackImageRow(index: number): string {
     return this.imageRows()[index]?.map((image) => image.id).join('-') ?? `${index}`;
   }
 
+  setThumbnailSize(size: ThumbnailSize): void {
+    this.thumbnailSize.set(size);
+    this.updateImageRows();
+  }
+
   deleteSelectedImages(): void {
+    if (this.selectedImageCount()) {
+      this.deleteImagesDialogOpen = true;
+    }
+  }
+
+  cancelDeleteSelectedImages(): void {
+    this.deleteImagesDialogOpen = false;
+  }
+
+  confirmDeleteSelectedImages(): void {
     const gallery = this.selectedGallery();
     const imageIds = Array.from(this.selectedImageIds());
     if (!gallery || !imageIds.length) {
-      return;
-    }
-
-    if (!confirm(`${imageIds.length} Bild(er) loeschen?`)) {
       return;
     }
 
@@ -261,6 +329,7 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
       .pipe(finalize(() => (this.deletingImages = false)))
       .subscribe({
         next: () => {
+          this.deleteImagesDialogOpen = false;
           this.clearImageDeleteState();
           this.loadImages(gallery.id);
           this.refreshChildren();
@@ -312,6 +381,34 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
     this.resetImageSelection();
   }
 
+  private updateUploadItem(
+    id: string,
+    changes: Partial<Omit<UploadQueueItem, 'id' | 'fileName'>>,
+  ): void {
+    this.uploadItems.update((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...changes } : item)),
+    );
+  }
+
+  private scheduleUploadDismiss(id: string): void {
+    this.uploadFadeTimers.set(
+      id,
+      setTimeout(() => {
+        this.updateUploadItem(id, { fading: true });
+        this.uploadRemoveTimers.set(
+          id,
+          setTimeout(() => {
+            this.uploadItems.update((items) =>
+              items.filter((item) => item.id !== id),
+            );
+            this.uploadFadeTimers.delete(id);
+            this.uploadRemoveTimers.delete(id);
+          }, 900),
+        );
+      }, 4000),
+    );
+  }
+
   private updateImageRows(): void {
     const images = this.images();
     if (!images.length) {
@@ -352,10 +449,17 @@ export class GalleryDetailComponent implements OnInit, OnDestroy {
   }
 
   private getImageRowHeight(): number {
+    const size = this.thumbnailSize();
     if (window.innerWidth <= 640) {
-      return 108;
+      return { s: 108, m: 140, l: 180 }[size];
     }
 
-    return Math.min(152, Math.max(112, window.innerWidth * 0.09));
+    const factors = { s: 0.09, m: 0.125, l: 0.16 };
+    const minimums = { s: 112, m: 150, l: 200 };
+    const maximums = { s: 152, m: 220, l: 290 };
+    return Math.min(
+      maximums[size],
+      Math.max(minimums[size], window.innerWidth * factors[size]),
+    );
   }
 }

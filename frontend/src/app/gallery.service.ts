@@ -61,6 +61,10 @@ export class GalleryService {
     return this.http.post<GalleryImage>(
       `/api/galleries/${galleryId}/images`,
       formData,
+      {
+        observe: 'events',
+        reportProgress: true,
+      },
     );
   }
 

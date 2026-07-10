@@ -8,13 +8,6 @@
       </div>
     </div>
 
-    <nav class="breadcrumbs" aria-label="Galeriepfad">
-      <a routerLink="/">Root</a>
-      @if (selectedGallery()) {
-        <button type="button">{{ selectedGallery()?.name }}</button>
-      }
-    </nav>
-
     <div class="stats-grid">
       <article>
         <span>{{ galleryCount() }}</span>
@@ -33,229 +26,311 @@
     <button type="button" class="ghost logout-button" (click)="logout()">Logout</button>
   </header>
 
+  <nav class="breadcrumbs" aria-label="Galeriepfad">
+    <a routerLink="/">Root</a>
+    @if (selectedGallery()) {
+    <i-lucide name="separator-vertical" size="16" color="#7f8b91" aria-hidden="true" />
+    <button type="button">{{ selectedGallery()?.name }}</button>
+    }
+  </nav>
+
   <section class="workspace">
     <header class="workspace-header">
       <div>
-        <p class="eyebrow">Aktive Galerie</p>
-        @if (selectedGallery() && editingGalleryTitle) {
-          <form class="title-edit-form" (ngSubmit)="saveTitleEdit()">
-            <input
-              name="editGalleryName"
-              type="text"
-              [(ngModel)]="editGalleryName"
-              aria-label="Galerietitel"
-            />
-            <button type="submit" class="primary-action">Speichern</button>
-            <button type="button" class="ghost inline-ghost" (click)="cancelTitleEdit()">
-              Abbrechen
-            </button>
-          </form>
-        } @else {
-          <div class="title-row">
-            <h1>{{ selectedGallery()?.name || 'Galerie' }}</h1>
-            @if (selectedGallery()) {
-              <button type="button" class="title-edit-button" (click)="startTitleEdit()">
-                Titel bearbeiten
-              </button>
-            }
-          </div>
-        }
+        <div class="title-row">
+          <h1>{{ selectedGallery()?.name || 'Galerie' }}</h1>
+          @if (selectedGallery()) {
+          <button
+            type="button"
+            class="title-edit-button icon-button"
+            title="Titel bearbeiten"
+            aria-label="Titel bearbeiten"
+            (click)="startTitleEdit()"
+          >
+            <i-lucide name="pencil" size="20" aria-hidden="true" />
+          </button>
+          }
+        </div>
       </div>
     </header>
 
     <section class="content-grid">
       <section class="gallery-panel">
         <div class="section-heading">
-          <div>
-            <h2>Untergalerien</h2>
+          <div class="flex ">
+            <div>
+              <h2>Untergalerien</h2>
+            </div>
+            <div>
+              <span (click)="openCreateGalleryDialog()">Galerie anlegen</span>
+            </div>
           </div>
           @if (loading) {
-            <span>Lade...</span>
+          <span>Lade...</span>
           }
         </div>
 
         <div class="gallery-list">
           @for (gallery of galleries(); track gallery.id) {
-            <article class="gallery-card">
-              <a [routerLink]="['/gallery', gallery.id]" class="gallery-card-open">
-                <span class="gallery-preview">
-                  @if (gallery.coverImageUrl) {
-                    <img [src]="gallery.coverImageUrl" [alt]="gallery.name" />
-                  } @else {
-                    <img src="/assets/gallery-placeholder.webp" alt="" />
-                  }
+          <article class="gallery-card">
+            <a [routerLink]="['/gallery', gallery.id]" class="gallery-card-open">
+              <span class="gallery-preview">
+                @if (gallery.coverImageUrl) {
+                <img [src]="gallery.coverImageUrl" [alt]="gallery.name" />
+                } @else {
+                <img src="/assets/gallery-placeholder.webp" alt="" />
+                }
+              </span>
+              <span class="gallery-card-body">
+                <strong>{{ gallery.name }}</strong>
+                <span class="gallery-card-meta">
+                  <small>{{ gallery.imageCount }} Bilder</small>
+                  <small>{{ gallery.childGalleryCount }} Untergalerien</small>
                 </span>
-                <span class="gallery-card-body">
-                  <strong>{{ gallery.name }}</strong>
-                  <span class="gallery-card-meta">
-                    <small>{{ gallery.imageCount }} Bilder</small>
-                    <small>{{ gallery.childGalleryCount }} Untergalerien</small>
-                  </span>
-                </span>
-              </a>
-              <button
-                type="button"
-                class="danger-action"
-                title="Galerie loeschen"
-                aria-label="Galerie loeschen"
-                (click)="deleteGallery(gallery, $event)"
-              >
-                X
-              </button>
-            </article>
+              </span>
+            </a>
+            <button type="button" class="danger-action" title="Galerie loeschen" aria-label="Galerie loeschen"
+              (click)="deleteGallery(gallery, $event)">
+              X
+            </button>
+          </article>
           } @empty {
-            <div class="empty-state compact">
-              <strong>Noch keine Untergalerien</strong>
-              <span>Lege eine neue Untergalerie an.</span>
-            </div>
+          <div class="empty-state compact">
+            <strong>Noch keine Untergalerien</strong>
+            <span>Lege eine neue Untergalerie an.</span>
+          </div>
           }
         </div>
 
-        <div class="gallery-create-row">
-          <button type="button" class="primary-action" (click)="openCreateGalleryDialog()">
-            Untergalerie anlegen
-          </button>
-        </div>
       </section>
     </section>
 
-    <section
-      class="upload-zone"
-      [ngClass]="{ active: uploadActive }"
-      (dragover)="$event.preventDefault(); uploadActive = true"
-      (dragleave)="uploadActive = false"
-      (drop)="onDrop($event)"
-    >
+    <section class="upload-zone" [ngClass]="{ active: uploadActive }"
+      (dragover)="$event.preventDefault(); uploadActive = true" (dragleave)="uploadActive = false"
+      (drop)="onDrop($event)">
       <div>
-        <p class="eyebrow">Upload</p>
         <strong>Bilder hinzufuegen</strong>
-        <span>JPG/JPEG oder Nikon NEF hier ablegen.</span>
+        <span>JPG/JPEG hier ablegen.</span>
       </div>
       <label class="file-button">
         Dateien waehlen
-        <input
-          type="file"
-          multiple
-          accept=".jpg,.jpeg,.nef,image/jpeg"
-          (change)="onFileSelected($event)"
-        />
+        <input type="file" multiple accept=".jpg,.jpeg,.nef,image/jpeg" (change)="onFileSelected($event)" />
       </label>
     </section>
 
     <section class="image-panel">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Assets</p>
           <h2>Bilder</h2>
         </div>
         <div class="image-actions">
-          <span>{{ images().length }} Dateien</span>
           @if (images().length) {
             @if (imageDeleteMode()) {
-              <span>{{ selectedImageCount() }} markiert</span>
-              <button type="button" class="secondary-action" (click)="selectAllImages()">
-                Alle markieren
-              </button>
-              <button
-                type="button"
-                class="secondary-action"
-                [disabled]="selectedImageCount() === 0"
-                (click)="resetImageSelection()"
-              >
-                Auswahl resetten
-              </button>
-              @if (selectedImageCount()) {
+              <div class="image-action-line">
+                <span>Groesse</span>
+                @for (size of thumbnailSizes; track size) {
+                  <button
+                    type="button"
+                    class="text-action size-action"
+                    [style.color]="thumbnailSize() === size ? '#1abc9c' : null"
+                    (click)="setThumbnailSize(size)"
+                  >
+                    {{ size }}
+                  </button>
+                }
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                <span>{{ selectedImageCount() }} von {{ images().length }} markiert</span>
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                <button type="button" class="text-action" (click)="selectAllImages()">
+                  Alle markieren
+                </button>
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
                 <button
                   type="button"
-                  class="delete-selection-action"
-                  [disabled]="deletingImages"
-                  (click)="deleteSelectedImages()"
+                  class="text-action"
+                  [disabled]="selectedImageCount() === 0"
+                  (click)="resetImageSelection()"
                 >
-                  Markierte loeschen
+                  Auswahl resetten
                 </button>
-              }
-              <button type="button" class="secondary-action" (click)="cancelImageDeleteMode()">
-                Abbrechen
-              </button>
+                @if (selectedImageCount()) {
+                  <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                  <button
+                    type="button"
+                    class="text-action danger-text-action"
+                    [disabled]="deletingImages"
+                    (click)="deleteSelectedImages()"
+                  >
+                    Markierte loeschen
+                  </button>
+                }
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                <button type="button" class="text-action" (click)="cancelImageDeleteMode()">
+                  Abbrechen
+                </button>
+              </div>
             } @else {
-              <button type="button" class="secondary-action" (click)="activateImageDeleteMode()">
-                Bilder loeschen
-              </button>
+              <div class="image-action-line">
+                <span>{{ images().length }} Dateien</span>
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                <span>Groesse</span>
+                @for (size of thumbnailSizes; track size) {
+                  <button
+                    type="button"
+                    class="text-action size-action"
+                    [style.color]="thumbnailSize() === size ? '#1abc9c' : null"
+                    (click)="setThumbnailSize(size)"
+                  >
+                    {{ size }}
+                  </button>
+                }
+                <i-lucide name="separator-vertical" size="14" color="#7f8b91" aria-hidden="true" />
+                <button type="button" class="text-action" (click)="activateImageDeleteMode()">
+                  Bilder loeschen
+                </button>
+              </div>
             }
           }
         </div>
       </div>
 
-      <div class="image-grid" #imageGrid>
+      <div
+        class="image-grid"
+        #imageGrid
+        [style.--gallery-image-row-height]="getImageRowHeightStyle()"
+      >
         @for (row of imageRows(); track trackImageRow($index); let isLastRow = $last) {
-          <div class="image-row" [ngClass]="{ 'is-last': isLastRow, 'is-full': !isLastRow }">
-            @for (image of row; track image.id) {
-              <article
-                class="image-card"
-                [style.--image-ratio]="getImageRatio(image)"
-                [style.--image-basis]="getImageBasis(image)"
-                [ngClass]="{
+        <div class="image-row" [ngClass]="{ 'is-last': isLastRow, 'is-full': !isLastRow }">
+          @for (image of row; track image.id) {
+          <article class="image-card" [style.--image-ratio]="getImageRatio(image)"
+            [style.--image-basis]="getImageBasis(image)" [ngClass]="{
                   'is-selectable': imageDeleteMode(),
                   'is-selected': isImageSelected(image.id)
-                }"
-              >
-                <div class="image-frame">
-                  @if (imageDeleteMode()) {
-                    <button
-                      type="button"
-                      class="image-selection-target"
-                      [attr.aria-pressed]="isImageSelected(image.id)"
-                      (click)="toggleImageSelection(image.id)"
-                    >
-                      <img [src]="image.previewUrl" [alt]="image.originalName" />
-                      <span class="selection-indicator" aria-hidden="true"></span>
-                    </button>
-                  } @else {
-                    <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
-                      <img [src]="image.previewUrl" [alt]="image.originalName" />
-                    </a>
-                  }
-                </div>
-              </article>
-            }
-          </div>
+                }">
+            <div class="image-frame">
+              @if (imageDeleteMode()) {
+              <button type="button" class="image-selection-target" [attr.aria-pressed]="isImageSelected(image.id)"
+                (click)="toggleImageSelection(image.id)">
+                <img [src]="image.previewUrl" [alt]="image.originalName" />
+                <span class="selection-indicator" aria-hidden="true"></span>
+              </button>
+              } @else {
+              <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
+                <img [src]="image.previewUrl" [alt]="image.originalName" />
+              </a>
+              }
+            </div>
+          </article>
+          }
+        </div>
         } @empty {
-          <div class="empty-state">
-            <strong>Noch keine Bilder</strong>
-            <span>Ziehe Dateien in die Upload-Flaeche, um diese Galerie zu fuellen.</span>
-          </div>
+        <div class="empty-state">
+          <strong>Noch keine Bilder</strong>
+          <span>Ziehe Dateien in die Upload-Flaeche, um diese Galerie zu fuellen.</span>
+        </div>
         }
       </div>
     </section>
   </section>
 
   @if (error()) {
-    <p class="error">{{ error() }}</p>
+  <p class="error">{{ error() }}</p>
+  }
+
+  @if (uploadItems().length) {
+    <section class="upload-overlay" aria-label="Uploadstatus">
+      @for (item of uploadItems(); track item.id) {
+        <article class="upload-overlay-item" [ngClass]="{ fading: item.fading }">
+          <div class="upload-overlay-row">
+            <strong>{{ item.fileName }}</strong>
+            @if (item.status === 'done') {
+              <span>Hochgeladen</span>
+            } @else if (item.status === 'error') {
+              <span>Fehler</span>
+            } @else {
+              <span>{{ item.progress }}%</span>
+            }
+          </div>
+          <div class="upload-progress">
+            <span
+              [style.width.%]="item.status === 'error' ? 100 : item.progress"
+              [ngClass]="{ failed: item.status === 'error' }"
+            ></span>
+          </div>
+        </article>
+      }
+    </section>
   }
 
   @if (createGalleryDialogOpen) {
-    <section class="dialog-backdrop" (click)="closeCreateGalleryDialog()">
-      <form class="gallery-dialog" (click)="$event.stopPropagation()" (ngSubmit)="createGallery()">
+  <section class="dialog-backdrop" (click)="closeCreateGalleryDialog()">
+    <form class="gallery-dialog" (click)="$event.stopPropagation()" (ngSubmit)="createGallery()">
+      <div>
+        <p class="eyebrow">Neue Untergalerie</p>
+        <h2>Titel eingeben</h2>
+      </div>
+      <label>
+        Titel
+        <input name="dialogGalleryName" type="text" [(ngModel)]="newGalleryName" autocomplete="off" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-action" (click)="closeCreateGalleryDialog()">
+          Abbrechen
+        </button>
+        <button type="submit" class="primary-action">Anlegen</button>
+      </div>
+    </form>
+    </section>
+  }
+
+  @if (editGalleryTitleDialogOpen) {
+    <section class="dialog-backdrop" (click)="cancelTitleEdit()">
+      <form class="gallery-dialog" (click)="$event.stopPropagation()" (ngSubmit)="saveTitleEdit()">
         <div>
-          <p class="eyebrow">Neue Untergalerie</p>
-          <h2>Titel eingeben</h2>
+          <p class="eyebrow">Galerietitel</p>
+          <h2>Titel bearbeiten</h2>
         </div>
         <label>
           Titel
           <input
-            name="dialogGalleryName"
+            name="editGalleryName"
             type="text"
-            [(ngModel)]="newGalleryName"
+            [(ngModel)]="editGalleryName"
             autocomplete="off"
           />
         </label>
         <div class="dialog-actions">
-          <button type="button" class="secondary-action" (click)="closeCreateGalleryDialog()">
+          <button type="button" class="secondary-action" (click)="cancelTitleEdit()">
             Abbrechen
           </button>
-          <button type="submit" class="primary-action">Anlegen</button>
+          <button type="submit" class="primary-action">Speichern</button>
         </div>
       </form>
+    </section>
+  }
+
+  @if (deleteImagesDialogOpen) {
+    <section class="dialog-backdrop" (click)="cancelDeleteSelectedImages()">
+      <div class="gallery-dialog" (click)="$event.stopPropagation()">
+        <div>
+          <p class="eyebrow">Bilder loeschen</p>
+          <h2>{{ selectedImageCount() }} Bild(er) loeschen?</h2>
+        </div>
+        <p>Die ausgewaehlten Bilder werden dauerhaft geloescht.</p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary-action" (click)="cancelDeleteSelectedImages()">
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            class="delete-selection-action"
+            [disabled]="deletingImages"
+            (click)="confirmDeleteSelectedImages()"
+          >
+            Ja
+          </button>
+        </div>
+      </div>
     </section>
   }
 </main>

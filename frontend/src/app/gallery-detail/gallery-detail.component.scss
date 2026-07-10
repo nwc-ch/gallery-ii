@@ -1,0 +1,62 @@
+.upload-overlay {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 6;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 44px));
+}
+
+.upload-overlay-item {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7dcde;
+  background-color: #f8faf9;
+  color: #20252a;
+  padding: 14px;
+  box-shadow: 0 12px 28px rgb(32 37 42 / 12%);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 900ms ease,
+    transform 900ms ease;
+}
+
+.upload-overlay-item.fading {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.upload-overlay-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.upload-overlay-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-overlay-row span {
+  color: #5f6b72;
+  white-space: nowrap;
+}
+
+.upload-progress {
+  height: 3px;
+  background: #d7dcde;
+}
+
+.upload-progress span {
+  display: block;
+  height: 100%;
+  background: #1abc9c;
+  transition: width 180ms ease;
+}
+
+.upload-progress span.failed {
+  background: #d24d57;
+}
