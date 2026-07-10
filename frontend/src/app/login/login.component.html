@@ -1,0 +1,36 @@
+<main class="app-shell">
+  <section class="login-view">
+    <div class="login-visual" aria-hidden="true">
+      <div class="brand-mark">GII</div>
+      <div class="visual-caption">
+        <span>Private archive</span>
+        <strong>Curated galleries for finished work.</strong>
+      </div>
+    </div>
+
+    <section class="login-panel">
+      <p class="eyebrow">Gallery II</p>
+      <h1>Bildarchive ruhig und klar verwalten.</h1>
+      <form (ngSubmit)="login()" class="login-form">
+        <label>
+          Email
+          <input name="email" type="email" [(ngModel)]="email" autocomplete="email" />
+        </label>
+        <label>
+          Passwort
+          <input
+            name="password"
+            type="password"
+            [(ngModel)]="password"
+            autocomplete="current-password"
+          />
+        </label>
+        <button type="submit" class="primary-action">Einloggen</button>
+      </form>
+    </section>
+  </section>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+</main>

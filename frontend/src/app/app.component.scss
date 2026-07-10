@@ -183,7 +183,6 @@ label {
   display: grid;
   grid-template-columns: auto minmax(180px, 1fr) auto auto;
   align-items: center;
-  gap: 20px;
   border-bottom: 1px solid #303940;
   background: #20252a;
   color: #ffffff;
@@ -198,6 +197,7 @@ label {
 
 .brand-block small,
 .stats-grid small,
+.breadcrumbs a,
 .breadcrumbs button,
 .empty-state span,
 .section-heading span,
@@ -208,11 +208,10 @@ label {
 
 .breadcrumbs {
   display: flex;
-  gap: 14px;
-  min-width: 0;
   overflow-x: auto;
 }
 
+.breadcrumbs a,
 .breadcrumbs button,
 .ghost {
   background: transparent;

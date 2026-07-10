@@ -1,0 +1,361 @@
+import { NgClass } from '@angular/common';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  signal,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { finalize, switchMap, tap } from 'rxjs';
+import { AuthService } from '../auth.service';
+import { Gallery, GalleryImage, GalleryService } from '../gallery.service';
+
+@Component({
+  selector: 'app-gallery-detail',
+  imports: [FormsModule, NgClass, RouterLink],
+  templateUrl: './gallery-detail.component.html',
+})
+export class GalleryDetailComponent implements OnInit, OnDestroy {
+  newGalleryName = '';
+  editGalleryName = '';
+  editingGalleryTitle = false;
+  createGalleryDialogOpen = false;
+  uploadActive = false;
+  loading = false;
+  deletingImages = false;
+  error = signal<string | null>(null);
+  galleries = signal<Gallery[]>([]);
+  images = signal<GalleryImage[]>([]);
+  imageRows = signal<GalleryImage[][]>([]);
+  selectedGallery = signal<Gallery | null>(null);
+  imageDeleteMode = signal(false);
+  selectedImageIds = signal<Set<string>>(new Set());
+  galleryCount = computed(() => this.galleries().length);
+  imageCount = computed(() => this.images().length);
+  selectedImageCount = computed(() => this.selectedImageIds().size);
+  containedGalleryCount = computed(() =>
+    this.galleries().reduce((sum, gallery) => sum + gallery.childGalleryCount, 0),
+  );
+  private imageGridResizeObserver?: ResizeObserver;
+  private imageGridWidth = 0;
+
+  @ViewChild('imageGrid')
+  set imageGridElement(element: ElementRef<HTMLElement> | undefined) {
+    this.imageGridResizeObserver?.disconnect();
+    this.imageGridResizeObserver = undefined;
+
+    if (!element) {
+      this.imageGridWidth = 0;
+      return;
+    }
+
+    this.imageGridWidth = element.nativeElement.clientWidth;
+    this.updateImageRows();
+    this.imageGridResizeObserver = new ResizeObserver(([entry]) => {
+      this.imageGridWidth = entry.contentRect.width;
+      this.updateImageRows();
+    });
+    this.imageGridResizeObserver.observe(element.nativeElement);
+  }
+
+  constructor(
+    readonly auth: AuthService,
+    private readonly galleriesApi: GalleryService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+  ) {}
+
+  ngOnInit(): void {
+    this.route.paramMap
+      .pipe(switchMap((params) => this.loadGalleryDetail(params.get('id') ?? '')))
+      .subscribe();
+  }
+
+  ngOnDestroy(): void {
+    this.imageGridResizeObserver?.disconnect();
+  }
+
+  logout(): void {
+    this.auth.logout();
+    sessionStorage.removeItem('gallery-ii-active-gallery-path');
+    void this.router.navigateByUrl('/login');
+  }
+
+  openCreateGalleryDialog(): void {
+    this.newGalleryName = '';
+    this.createGalleryDialogOpen = true;
+  }
+
+  closeCreateGalleryDialog(): void {
+    this.newGalleryName = '';
+    this.createGalleryDialogOpen = false;
+  }
+
+  createGallery(): void {
+    const name = this.newGalleryName.trim();
+    const gallery = this.selectedGallery();
+    if (!gallery || !name) {
+      return;
+    }
+
+    this.galleriesApi.createGallery(name, gallery.id).subscribe({
+      next: () => {
+        this.newGalleryName = '';
+        this.createGalleryDialogOpen = false;
+        this.refreshChildren();
+      },
+      error: () => this.error.set('Galerie konnte nicht erstellt werden.'),
+    });
+  }
+
+  startTitleEdit(): void {
+    const gallery = this.selectedGallery();
+    if (!gallery) {
+      return;
+    }
+
+    this.editGalleryName = gallery.name;
+    this.editingGalleryTitle = true;
+  }
+
+  cancelTitleEdit(): void {
+    this.editGalleryName = '';
+    this.editingGalleryTitle = false;
+  }
+
+  saveTitleEdit(): void {
+    const gallery = this.selectedGallery();
+    const name = this.editGalleryName.trim();
+    if (!gallery || !name) {
+      return;
+    }
+
+    this.galleriesApi.updateGallery(gallery.id, name).subscribe({
+      next: (updatedGallery) => {
+        this.selectedGallery.set(updatedGallery);
+        this.editGalleryName = '';
+        this.editingGalleryTitle = false;
+      },
+      error: () => this.error.set('Galerietitel konnte nicht gespeichert werden.'),
+    });
+  }
+
+  deleteGallery(gallery: Gallery, event: MouseEvent): void {
+    event.stopPropagation();
+    if (
+      !confirm(
+        `Galerie "${gallery.name}" inklusive Untergalerien und Bildern loeschen?`,
+      )
+    ) {
+      return;
+    }
+
+    this.galleriesApi.deleteGallery(gallery.id).subscribe({
+      next: () => this.refreshChildren(),
+      error: () => this.error.set('Galerie konnte nicht geloescht werden.'),
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.uploadFiles(input.files);
+    input.value = '';
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.uploadActive = false;
+    this.uploadFiles(event.dataTransfer?.files ?? null);
+  }
+
+  uploadFiles(files: FileList | null): void {
+    const gallery = this.selectedGallery();
+    if (!gallery || !files?.length) {
+      return;
+    }
+
+    Array.from(files).forEach((file) => {
+      this.galleriesApi.uploadImage(gallery.id, file).subscribe({
+        next: () => {
+          this.loadImages(gallery.id);
+          this.refreshChildren();
+        },
+        error: () => this.error.set(`${file.name} konnte nicht hochgeladen werden.`),
+      });
+    });
+  }
+
+  activateImageDeleteMode(): void {
+    if (this.images().length) {
+      this.imageDeleteMode.set(true);
+    }
+  }
+
+  cancelImageDeleteMode(): void {
+    this.clearImageDeleteState();
+  }
+
+  resetImageSelection(): void {
+    this.selectedImageIds.set(new Set());
+  }
+
+  selectAllImages(): void {
+    this.selectedImageIds.set(new Set(this.images().map((image) => image.id)));
+  }
+
+  toggleImageSelection(imageId: string): void {
+    if (!this.imageDeleteMode()) {
+      return;
+    }
+
+    this.selectedImageIds.update((selectedIds) => {
+      const nextSelectedIds = new Set(selectedIds);
+      if (nextSelectedIds.has(imageId)) {
+        nextSelectedIds.delete(imageId);
+      } else {
+        nextSelectedIds.add(imageId);
+      }
+
+      return nextSelectedIds;
+    });
+  }
+
+  isImageSelected(imageId: string): boolean {
+    return this.selectedImageIds().has(imageId);
+  }
+
+  getImageRatio(image: GalleryImage): number {
+    if (!image.width || !image.height) {
+      return 1.45;
+    }
+
+    return Math.max(0.65, Math.min(image.width / image.height, 3.2));
+  }
+
+  getImageBasis(image: GalleryImage): string {
+    return `${Math.round(this.getImageRatio(image) * this.getImageRowHeight())}px`;
+  }
+
+  trackImageRow(index: number): string {
+    return this.imageRows()[index]?.map((image) => image.id).join('-') ?? `${index}`;
+  }
+
+  deleteSelectedImages(): void {
+    const gallery = this.selectedGallery();
+    const imageIds = Array.from(this.selectedImageIds());
+    if (!gallery || !imageIds.length) {
+      return;
+    }
+
+    if (!confirm(`${imageIds.length} Bild(er) loeschen?`)) {
+      return;
+    }
+
+    this.deletingImages = true;
+    this.galleriesApi
+      .deleteImages(gallery.id, imageIds)
+      .pipe(finalize(() => (this.deletingImages = false)))
+      .subscribe({
+        next: () => {
+          this.clearImageDeleteState();
+          this.loadImages(gallery.id);
+          this.refreshChildren();
+        },
+        error: () => this.error.set('Bilder konnten nicht geloescht werden.'),
+      });
+  }
+
+  private loadGalleryDetail(galleryId: string) {
+    this.loading = true;
+    this.error.set(null);
+    sessionStorage.setItem('gallery-ii-active-gallery-path', `/gallery/${galleryId}`);
+    return this.galleriesApi.getGallery(galleryId).pipe(
+      switchMap((gallery) => {
+        this.selectedGallery.set(gallery);
+        this.loadImages(gallery.id);
+        return this.galleriesApi.listGalleries(gallery.id);
+      }),
+      tap((galleries) => this.galleries.set(galleries)),
+      finalize(() => (this.loading = false)),
+    );
+  }
+
+  private refreshChildren(): void {
+    const gallery = this.selectedGallery();
+    if (!gallery) {
+      return;
+    }
+
+    this.galleriesApi.listGalleries(gallery.id).subscribe({
+      next: (galleries) => this.galleries.set(galleries),
+      error: () => this.error.set('Galerien konnten nicht geladen werden.'),
+    });
+  }
+
+  private loadImages(galleryId: string): void {
+    this.galleriesApi.listImages(galleryId).subscribe({
+      next: (images) => {
+        this.images.set(images);
+        this.resetImageSelection();
+        this.updateImageRows();
+      },
+      error: () => this.error.set('Bilder konnten nicht geladen werden.'),
+    });
+  }
+
+  private clearImageDeleteState(): void {
+    this.imageDeleteMode.set(false);
+    this.resetImageSelection();
+  }
+
+  private updateImageRows(): void {
+    const images = this.images();
+    if (!images.length) {
+      this.imageRows.set([]);
+      return;
+    }
+
+    const width = this.imageGridWidth;
+    if (!width) {
+      this.imageRows.set([images]);
+      return;
+    }
+
+    const gap = 16;
+    const rowHeight = this.getImageRowHeight();
+    const rows: GalleryImage[][] = [];
+    let row: GalleryImage[] = [];
+    let rowWidth = 0;
+
+    images.forEach((image) => {
+      const imageWidth = this.getImageRatio(image) * rowHeight;
+      const nextWidth = rowWidth + imageWidth + (row.length ? gap : 0);
+      if (row.length && nextWidth >= width) {
+        rows.push(row);
+        row = [image];
+        rowWidth = imageWidth;
+      } else {
+        row.push(image);
+        rowWidth = nextWidth;
+      }
+    });
+
+    if (row.length) {
+      rows.push(row);
+    }
+
+    this.imageRows.set(rows);
+  }
+
+  private getImageRowHeight(): number {
+    if (window.innerWidth <= 640) {
+      return 108;
+    }
+
+    return Math.min(152, Math.max(112, window.innerWidth * 0.09));
+  }
+}

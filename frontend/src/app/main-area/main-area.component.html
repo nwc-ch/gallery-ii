@@ -1,0 +1,126 @@
+<main class="app-shell is-authenticated">
+  <header class="sidebar">
+    <div class="brand-block">
+      <span class="brand-mark">GII</span>
+      <div>
+        <strong>Gallery II</strong>
+        <small>Image workspace</small>
+      </div>
+    </div>
+
+    <nav class="breadcrumbs" aria-label="Galeriepfad">
+      <button type="button">Root</button>
+    </nav>
+
+    <div class="stats-grid">
+      <article>
+        <span>{{ galleryCount }}</span>
+        <small>Galerien</small>
+      </article>
+      <article>
+        <span>0</span>
+        <small>Bilder</small>
+      </article>
+      <article>
+        <span>{{ containedGalleryCount }}</span>
+        <small>Enthalten</small>
+      </article>
+    </div>
+
+    <button type="button" class="ghost logout-button" (click)="logout()">Logout</button>
+  </header>
+
+  <section class="workspace">
+    <header class="workspace-header">
+      <div class="title-row">
+        <h1>Galerien</h1>
+      </div>
+    </header>
+
+    <section class="content-grid root-gallery-list">
+      <section class="gallery-panel">
+        <div class="section-heading">
+          <div>
+            <h2>Bestehende Galerien</h2>
+          </div>
+          @if (loading) {
+            <span>Lade...</span>
+          }
+        </div>
+
+        <div class="gallery-list">
+          @for (gallery of galleries(); track gallery.id) {
+            <article class="gallery-card">
+              <a [routerLink]="['/gallery', gallery.id]" class="gallery-card-open">
+                <span class="gallery-preview">
+                  @if (gallery.coverImageUrl) {
+                    <img [src]="gallery.coverImageUrl" [alt]="gallery.name" />
+                  } @else {
+                    <img src="/assets/gallery-placeholder.webp" alt="" />
+                  }
+                </span>
+                <span class="gallery-card-body">
+                  <strong>{{ gallery.name }}</strong>
+                  <span class="gallery-card-meta">
+                    <small>{{ gallery.imageCount }} Bilder</small>
+                    <small>{{ gallery.childGalleryCount }} Untergalerien</small>
+                  </span>
+                </span>
+              </a>
+              <button
+                type="button"
+                class="danger-action"
+                title="Galerie loeschen"
+                aria-label="Galerie loeschen"
+                (click)="deleteGallery(gallery, $event)"
+              >
+                X
+              </button>
+            </article>
+          } @empty {
+            <div class="empty-state compact">
+              <strong>Noch keine Galerien vorhanden</strong>
+              <span>Lege die erste Galerie an.</span>
+            </div>
+          }
+        </div>
+
+        <div class="gallery-create-row">
+          <button type="button" class="primary-action" (click)="openCreateGalleryDialog()">
+            Galerie anlegen
+          </button>
+        </div>
+      </section>
+    </section>
+  </section>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  @if (createGalleryDialogOpen) {
+    <section class="dialog-backdrop" (click)="closeCreateGalleryDialog()">
+      <form class="gallery-dialog" (click)="$event.stopPropagation()" (ngSubmit)="createGallery()">
+        <div>
+          <p class="eyebrow">Neue Galerie</p>
+          <h2>Titel eingeben</h2>
+        </div>
+        <label>
+          Titel
+          <input
+            name="dialogGalleryName"
+            type="text"
+            [(ngModel)]="newGalleryName"
+            autocomplete="off"
+          />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="secondary-action" (click)="closeCreateGalleryDialog()">
+            Abbrechen
+          </button>
+          <button type="submit" class="primary-action">Anlegen</button>
+        </div>
+      </form>
+    </section>
+  }
+</main>
