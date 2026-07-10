@@ -97,16 +97,6 @@
             </div>
           }
         </div>
-
-        <form class="create-form" (ngSubmit)="createGallery()">
-          <input
-            name="newGalleryName"
-            type="text"
-            [(ngModel)]="newGalleryName"
-            placeholder="Neue Galerie"
-          />
-          <button type="submit" class="primary-action">Anlegen</button>
-        </form>
       </header>
 
       <section class="content-grid" [ngClass]="{ 'root-gallery-list': !selectedGallery() }">
@@ -165,6 +155,12 @@
               </div>
             }
           </div>
+
+          <div class="gallery-create-row">
+            <button type="button" class="primary-action" (click)="openCreateGalleryDialog()">
+              {{ selectedGallery() ? 'Untergalerie anlegen' : 'Galerie anlegen' }}
+            </button>
+          </div>
         </section>
       </section>
 
@@ -198,35 +194,77 @@
               <p class="eyebrow">Assets</p>
               <h2>Bilder</h2>
             </div>
-            <span>{{ images().length }} Dateien</span>
+            <div class="image-actions">
+              <span>{{ images().length }} Dateien</span>
+              @if (images().length) {
+                @if (imageDeleteMode()) {
+                  <span>{{ selectedImageCount() }} markiert</span>
+                  <button type="button" class="secondary-action" (click)="selectAllImages()">
+                    Alle markieren
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary-action"
+                    [disabled]="selectedImageCount() === 0"
+                    (click)="resetImageSelection()"
+                  >
+                    Auswahl resetten
+                  </button>
+                  @if (selectedImageCount()) {
+                    <button
+                      type="button"
+                      class="delete-selection-action"
+                      [disabled]="deletingImages"
+                      (click)="deleteSelectedImages()"
+                    >
+                      Markierte loeschen
+                    </button>
+                  }
+                  <button type="button" class="secondary-action" (click)="cancelImageDeleteMode()">
+                    Abbrechen
+                  </button>
+                } @else {
+                  <button type="button" class="secondary-action" (click)="activateImageDeleteMode()">
+                    Bilder loeschen
+                  </button>
+                }
+              }
+            </div>
           </div>
 
-          <div class="image-grid">
-            @for (image of images(); track image.id) {
-              <article class="image-card">
-                <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
-                  <img [src]="image.previewUrl" [alt]="image.originalName" />
-                </a>
-                <div class="image-meta">
-                  <strong>{{ image.originalName }}</strong>
-                  <small>
-                    @if (image.width && image.height) {
-                      {{ image.width }} x {{ image.height }} px
-                    } @else {
-                      Groesse unbekannt
-                    }
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  class="danger-action"
-                  title="Bild loeschen"
-                  aria-label="Bild loeschen"
-                  (click)="deleteImage(image)"
-                >
-                  X
-                </button>
-              </article>
+          <div class="image-grid" #imageGrid>
+            @for (row of imageRows(); track trackImageRow($index); let isLastRow = $last) {
+              <div class="image-row" [ngClass]="{ 'is-last': isLastRow, 'is-full': !isLastRow }">
+                @for (image of row; track image.id) {
+                  <article
+                    class="image-card"
+                    [style.--image-ratio]="getImageRatio(image)"
+                    [style.--image-basis]="getImageBasis(image)"
+                    [ngClass]="{
+                      'is-selectable': imageDeleteMode(),
+                      'is-selected': isImageSelected(image.id)
+                    }"
+                  >
+                    <div class="image-frame">
+                      @if (imageDeleteMode()) {
+                        <button
+                          type="button"
+                          class="image-selection-target"
+                          [attr.aria-pressed]="isImageSelected(image.id)"
+                          (click)="toggleImageSelection(image.id)"
+                        >
+                          <img [src]="image.previewUrl" [alt]="image.originalName" />
+                          <span class="selection-indicator" aria-hidden="true"></span>
+                        </button>
+                      } @else {
+                        <a [href]="image.displayUrl" target="_blank" rel="noreferrer">
+                          <img [src]="image.previewUrl" [alt]="image.originalName" />
+                        </a>
+                      }
+                    </div>
+                  </article>
+                }
+              </div>
             } @empty {
               <div class="empty-state">
                 <strong>Noch keine Bilder</strong>
@@ -241,5 +279,31 @@
 
   @if (error()) {
     <p class="error">{{ error() }}</p>
+  }
+
+  @if (createGalleryDialogOpen) {
+    <section class="dialog-backdrop" (click)="closeCreateGalleryDialog()">
+      <form class="gallery-dialog" (click)="$event.stopPropagation()" (ngSubmit)="createGallery()">
+        <div>
+          <p class="eyebrow">{{ selectedGallery() ? 'Neue Untergalerie' : 'Neue Galerie' }}</p>
+          <h2>Titel eingeben</h2>
+        </div>
+        <label>
+          Titel
+          <input
+            name="dialogGalleryName"
+            type="text"
+            [(ngModel)]="newGalleryName"
+            autocomplete="off"
+          />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" class="secondary-action" (click)="closeCreateGalleryDialog()">
+            Abbrechen
+          </button>
+          <button type="submit" class="primary-action">Anlegen</button>
+        </div>
+      </form>
+    </section>
   }
 </main>

@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { forkJoin } from 'rxjs';
 
 export type Gallery = {
   id: string;
@@ -63,7 +64,11 @@ export class GalleryService {
     );
   }
 
-  deleteImage(galleryId: string, imageId: string) {
-    return this.http.delete<void>(`/api/galleries/${galleryId}/images/${imageId}`);
+  deleteImages(galleryId: string, imageIds: string[]) {
+    return forkJoin(
+      imageIds.map((imageId) =>
+        this.http.delete<void>(`/api/galleries/${galleryId}/images/${imageId}`),
+      ),
+    );
   }
 }
